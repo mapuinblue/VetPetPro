@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = {
-  PORT: process.env.PORT || 3000,
+  PORT: process.env.PORT || 3100,
   NODE_ENV: process.env.NODE_ENV || 'development',
   DB_PATH: process.env.DB_PATH || './data/vetpetpro.db',
   JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key-change-in-production',

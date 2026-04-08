@@ -4,27 +4,59 @@ import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateToken } from '../utils/jwt.js';
 import { sendPasswordRecovery } from '../utils/email.js';
 
+/**
+ * CONTROLADOR DE AUTENTICACIÓN
+ * 
+ * Maneja el registro, login y recuperación de contraseña para:
+ * - Dueños de mascotas (role: 'owner')
+ * - Clínicas veterinarias (role: 'clinic')
+ * - Administradores (role: 'admin')
+ * 
+ * FLUJO DE SEGURIDAD:
+ * 1. Las contraseñas se hashean con bcrypt antes de almacenar
+ * 2. Se genera JWT token que incluye userId, role y clinicId (si aplica)
+ * 3. Todas las rutas protegidas validan el JWT token
+ */
+
+/**
+ * REGISTER USER - Registrar un nuevo usuario
+ * 
+ * @route POST /api/auth/register
+ * @body {email, password, firstName, lastName, phone, role?}
+ * @returns {statusCode: 201, user: {...}, token: "JWT"}
+ * 
+ * Características:
+ * - El rol por defecto es 'owner' (dueño de mascota)
+ * - Las contraseñas se hashean automáticamente
+ * - Valida que no exista otro usuario con el mismo email
+ * - Si es una clínica, necesita ser creada primero por un admin
+ */
 export const registerUser = async (req, res) => {
   try {
     const { email, password, firstName, lastName, phone, role = 'owner' } = req.body;
 
+    // Validar campos requeridos
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({ error: 'Campos requeridos: email, password, firstName, lastName' });
     }
 
+    // Verificar que el email no esté registrado
     const existingUser = await get('SELECT id FROM users WHERE email = ?', [email]);
     if (existingUser) {
       return res.status(400).json({ error: 'El email ya está registrado' });
     }
 
+    // Hashear contraseña con bcrypt
     const hashedPassword = await hashPassword(password);
     const userId = uuidv4();
 
+    // Insertar usuario en la base de datos
     await run(
       'INSERT INTO users (id, email, password, firstName, lastName, phone, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [userId, email, hashedPassword, firstName, lastName, phone, role]
     );
 
+    // Generar JWT token
     const token = generateToken(userId, role);
 
     res.status(201).json({
@@ -44,6 +76,24 @@ export const registerUser = async (req, res) => {
   }
 };
 
+/**
+ * LOGIN USER - Iniciar sesión
+ * 
+ * @route POST /api/auth/login
+ * @body {email, password}
+ * @returns {statusCode: 200, user: {...}, token: "JWT"}
+ * 
+ * Flujo:
+ * 1. Buscar usuario por email
+ * 2. Verificar que no esté marcado como inactivo
+ * 3. Comparar contraseña hasheada
+ * 4. Generar token JWT con userId, role, clinicId
+ * 5. Devolver datos de usuario y token
+ * 
+ * Notas de seguridad:
+ * - Mensaje genérico "Email o contraseña incorrectos" para ambos errores
+ * - Impide ataques de enumeración de emails
+ */
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -52,20 +102,25 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
 
+    // Buscar usuario por email
     const user = await get('SELECT * FROM users WHERE email = ?', [email]);
     if (!user) {
+      // Mensaje genérico por seguridad
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
+    // Verificar que el usuario esté activo
     if (!user.isActive) {
       return res.status(401).json({ error: 'Usuario inactivo' });
     }
 
+    // Comparar contraseña con bcrypt
     const passwordMatch = await comparePassword(password, user.password);
     if (!passwordMatch) {
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
+    // Generar JWT token incluyendo clinicId si es una clínica
     const token = generateToken(user.id, user.role, user.clinicId);
 
     res.json({
@@ -86,6 +141,18 @@ export const loginUser = async (req, res) => {
   }
 };
 
+/**
+ * REQUEST PASSWORD RESET - Solicitar recuperación de contraseña
+ * 
+ * @route POST /api/auth/request-password-reset
+ * @body {email}
+ * @returns {statusCode: 200, message: "Si existe, se envió email"}
+ * 
+ * Notas de seguridad:
+ * - Devuelve el mismo mensaje tanto si el email existe como si no
+ * - Impide ataques de enumeración de usuarios
+ * - Envía email con enlace de recuperación (si el usuario existe)
+ */
 export const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;

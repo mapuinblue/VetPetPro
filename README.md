@@ -8,7 +8,7 @@ Aplicación de escritorio que permite a dueños de mascotas acceder, agendar y g
 
 ### 👥 Para Dueños de Mascotas
 - ✅ Registro y gestión de múltiples mascotas
-- ✅ Búsqueda y filtrado de clínicas y servicios
+- ✅ Búsqueda y filtrado de clínicas y serviciosnpm run electron
 - ✅ Agendamiento online con disponibilidad en tiempo real
 - ✅ Historial clínico completo por mascota
 - ✅ Cancelación de citas (mínimo 24h antes)

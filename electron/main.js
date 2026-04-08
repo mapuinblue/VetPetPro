@@ -24,6 +24,8 @@ const createWindow = () => {
     },
   });
 
+  // En desarrollo, Vite corre en puerto 3001 (frontend) con proxy a 3100 (backend)
+  // start-app.js ya inicia backend+frontend+electron, así que no rehacemos el backend aquí
   const startUrl = isDev
     ? 'http://localhost:3001'
     : `file://${path.join(__dirname, '../frontend/dist/index.html')}`;
@@ -40,24 +42,32 @@ const createWindow = () => {
   });
 };
 
-// Iniciar backend en desarrollo
-const startBackend = () => {
-  if (isDev) {
-    const backendPath = path.join(__dirname, '../backend');
-    backendProcess = spawn('npm', ['run', 'dev:backend'], {
-      cwd: backendPath,
-      stdio: 'inherit',
-    });
+// Iniciar backend en desarrollo - COMENTADO porque start-app.js ya lo inicia
+// const startBackend = () => {
+//   if (isDev) {
+//     const backendPath = path.join(__dirname, '../backend');
+//     backendProcess = spawn('npm', ['run', 'dev:backend'], {
+//       cwd: backendPath,
+//       stdio: 'inherit',
+//     });
 
-    backendProcess.on('error', (error) => {
-      console.error('Error al iniciar backend:', error);
-    });
+//     backendProcess.on('error', (error) => {
+//       console.error('Error al iniciar backend:', error);
+//     });
+//   }
+// };
+
+// Limpiar procesos al cerrar app
+const cleanupProcesses = () => {
+  // start-app.js maneja la limpieza de procesos
+  if (backendProcess && !backendProcess.killed) {
+    backendProcess.kill();
   }
 };
 
 // App events
 app.on('ready', () => {
-  startBackend();
+  // Backend ya inició desde start-app.js
   createWindow();
   createMenu();
 });
