@@ -1,6 +1,6 @@
 # 🐕 VetPetPro - Sistema de Agendamiento Veterinario Canino
 
-**App de escritorio para agendamiento y gestión de servicios en clínicas veterinarias caninas - Completamente funcional y listo para producción.**
+**App de escritorio para agendamiento y gestión de servicios en clínicas veterinarias caninas.**
 
 Aplicación de escritorio que permite a dueños de mascotas acceder, agendar y gestionar servicios veterinarios, y a las clínicas administrar su operación de manera ágil y centralizada.
 
