@@ -1,0 +1,80 @@
+{
+  "name": "vetpetpro",
+  "version": "1.0.0",
+  "description": "Sistema de Agendamiento y Gestión de Servicios para Clínicas Veterinarias Caninas",
+  "private": true,
+  "main": "electron/main.js",
+  "homepage": "./",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace backend & npm run dev --workspace frontend",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:electron": "cross-env NODE_ENV=development electron .",
+    "electron": "electron .",
+    "start": "node start-app.js",
+    "build": "npm run build --workspace frontend",
+    "build:all": "npm run build --workspace backend && npm run build --workspace frontend",
+    "build:electron": "npm run build:all && electron-builder",
+    "setup-db": "npm run setup-db --workspace backend",
+    "seed": "npm run seed --workspace backend"
+  },
+  "keywords": [
+    "veterinary",
+    "clinic",
+    "scheduling",
+    "pet-management"
+  ],
+  "author": "VetPetPro",
+  "license": "MIT",
+  "build": {
+    "appId": "com.vetpetpro.app",
+    "productName": "VetPetPro",
+    "files": [
+      "electron/**/*",
+      "frontend/dist/**/*",
+      "backend/data/**/*",
+      "backend/.env",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "electron-is-dev": "^3.0.1"
+  }
+}
