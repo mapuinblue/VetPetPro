@@ -143,21 +143,6 @@ La app abrirá automáticamente. Ahora puedes:
 
 O registrate como nuevo usuario.
 
----
-
-### Compilar tu Propia Versión Instalable
-
-Si hiciste cambios y quieres crear un instalable:
-
-```bash
-npm run build:electron
-```
-
-Esto genera en la carpeta `dist/`:
-- **Windows:** `VetPetPro-Setup.exe` y `VetPetPro.exe`
-- **macOS:** `VetPetPro.dmg`
-- **Linux:** `VetPetPro.AppImage` y `.deb`
-
 ## 📁 Estructura del Proyecto
 
 ```
@@ -190,63 +175,6 @@ VetPetPro/
 ├── DEPLOYMENT.md             ← Guía de despliegue
 └── README.md                 ← Este archivo
 ```
-
-## 🛠️ Scripts Disponibles
-
-```bash
-# Desarrollo
-npm start                    # Inicia toda la app (backend + frontend + electron)
-npm run dev:backend         # Solo backend
-npm run dev:frontend        # Solo frontend
-npm run electron            # Solo electron (si están corriendo backend/frontend)
-
-# Compilación
-npm run build:all           # Compila backend y frontend
-npm run build:electron      # Crea instalables (NPM start)
-
-# Base de datos
-npm run setup-db            # Crea esquema de BD
-npm run seed                # Carga datos de prueba
-```
-
-## 🎨 Integrando el Logo
-
-Para usar el logo personalizado en la app:
-
-### 1. Guardar el Logo en Assets
-
-Copia el archivo de logo `icon.png` a:
-```
-c:\Users\USUARIO\Documents\VetPetPro\assets\icon.png
-```
-
-El logo será usado automáticamente como:
-- ✅ Icono de la ventana Electron
-- ✅ Logo en la barra de navegación
-- ✅ Icono en el instalador de Windows/Mac
-
-### 2. Guardar Logo en Frontend (Opcional)
-
-Si deseas mostrar el logo en la web también:
-
-Copia el logo a:
-```
-c:\Users\USUARIO\Documents\VetPetPro\frontend\public\vetpetpro-logo.png
-```
-
-### 3. Actualizar Compilación
-
-Cuando compiles la app instalable, el logo se incluye automáticamente:
-
-```bash
-npm run build:electron
-```
-
-**Formatos soportados:**
-- `icon.png` - Recomendado (multiplataforma)
-- `icon.ico` - Para Windows
-- `icon.icns` - Para macOS
-
 ## 📈 Roadmap Futuro
 
 - [ ] Integración de pagos online
@@ -257,28 +185,6 @@ npm run build:electron
 - [ ] Sistema de subscripción para clínicas
 - [ ] Analytics avanzados
 - [ ] Sincronización en la nube
-
-## 🐛 Solución de Problemas
-
-### "Port 3100 already in use"
-```bash
-# Windows
-taskkill /PID <PID> /F
-
-# macOS/Linux
-kill -9 <PID>
-```
-
-### "Cannot find module"
-```bash
-npm install
-```
-
-### "Database error"
-```bash
-npm run setup-db
-npm run seed
-```
 
 ## 👥 Contribuciones
 

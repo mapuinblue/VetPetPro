@@ -66,7 +66,7 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
-    const token = generateToken(user.id, user.role);
+    const token = generateToken(user.id, user.role, user.clinicId);
 
     res.json({
       message: 'Sesión iniciada exitosamente',

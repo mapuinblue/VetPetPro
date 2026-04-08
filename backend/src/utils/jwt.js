@@ -1,9 +1,13 @@
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
 
-export const generateToken = (userId, role) => {
+export const generateToken = (userId, role, clinicId = null) => {
+  const payload = { userId, role };
+  if (clinicId) {
+    payload.clinicId = clinicId;
+  }
   return jwt.sign(
-    { userId, role },
+    payload,
     config.JWT_SECRET,
     { expiresIn: '7d' }
   );

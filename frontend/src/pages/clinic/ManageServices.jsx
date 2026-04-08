@@ -14,14 +14,43 @@ const DAYS = [
 
 export default function ManageServices() {
   const { user } = useUser();
-  const [activeTab, setActiveTab] = useState('services'); // 'services' o 'availability'
+  const [activeTab, setActiveTab] = useState('services');
   const [services, setServices] = useState([]);
   const [schedule, setSchedule] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Modal de edición
+  const [showModal, setShowModal] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [priceDisplay, setPriceDisplay] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    duration: 30,
+    price: 0,
+    category: 'salud'
+  });
 
-  // Cargar servicios y horarios
+  const CATEGORIES = [
+    { value: 'salud', label: '🏥 Salud' },
+    { value: 'estética', label: '✨ Estética' },
+    { value: 'nutrición', label: '🥗 Nutrición' },
+    { value: 'guardería', label: '🏠 Guardería' },
+    { value: 'funeraria', label: '🪦 Funeraria' }
+  ];
+
+  // Funciones para formato de pesos colombianos
+  const formatCOP = (value) => {
+    if (!value) return '';
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const parseCOP = (value) => {
+    return value.replace(/\./g, '');
+  };  
+
   useEffect(() => {
     if (user?.clinicId) {
       if (activeTab === 'services') {
@@ -66,6 +95,115 @@ export default function ManageServices() {
     }
   };
 
+  const handleOpenModal = (service = null) => {
+    if (service) {
+      setEditingService(service);
+      setFormData({
+        name: service.name,
+        description: service.description || '',
+        duration: service.duration,
+        price: service.price,
+        category: service.category || 'salud'
+      });
+      setPriceDisplay(formatCOP(service.price));
+    } else {
+      setEditingService(null);
+      setFormData({
+        name: '',
+        description: '',
+        duration: 30,
+        price: 0,
+        category: 'salud'
+      });
+      setPriceDisplay('');
+    }
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingService(null);
+    setFormData({ name: '', description: '', duration: 30, price: 0, category: 'salud' });
+    setPriceDisplay('');
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveService = async () => {
+    if (!formData.name) {
+      setError('El nombre del servicio es requerido');
+      return;
+    }
+
+    if (!formData.price || formData.price <= 0) {
+      setError('El precio debe ser mayor a 0');
+      return;
+    }
+
+    if (!formData.category) {
+      setError('Debes seleccionar una categoría');
+      return;
+    }
+
+    if (!formData.duration || formData.duration < 15) {
+      setError('La duración debe ser al menos 15 minutos');
+      return;
+    }
+
+    try {
+      setError('');
+      setLoading(true);
+
+      const serviceData = {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        category: formData.category,
+        duration: parseInt(formData.duration),
+        price: parseInt(formData.price)
+      };
+
+      if (editingService) {
+        // Actualizar servicio
+        await serviceAPI.updateService(editingService.id, serviceData);
+        setSuccess('✅ Servicio actualizado');
+      } else {
+        // Crear nuevo servicio
+        await serviceAPI.createService(serviceData);
+        setSuccess('✅ Servicio creado');
+      }
+
+      handleCloseModal();
+      fetchServices();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || err.message || 'Error al guardar servicio';
+      setError(errorMsg);
+      console.error('Error guardando servicio:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteService = async (serviceId) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar este servicio?')) return;
+
+    try {
+      setError('');
+      await serviceAPI.deleteService(serviceId);
+      setSuccess('✅ Servicio eliminado');
+      fetchServices();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al eliminar servicio');
+      console.error(err);
+    }
+  };
+
   const handleScheduleChange = (dayOfWeek, field, value) => {
     setSchedule(prev => ({
       ...prev,
@@ -94,14 +232,13 @@ export default function ManageServices() {
 
       for (const [dayOfWeek, daySchedule] of Object.entries(schedule)) {
         if (daySchedule.isOpen && daySchedule.startTime && daySchedule.endTime) {
-          const response = await availabilityAPI.updateSchedule({
+          await availabilityAPI.updateSchedule({
             clinicId: user.clinicId,
             dayOfWeek: parseInt(dayOfWeek),
             startTime: daySchedule.startTime,
             endTime: daySchedule.endTime,
             isOpen: true
           });
-          console.log('Schedule response:', response);
         }
       }
 
@@ -159,81 +296,225 @@ export default function ManageServices() {
       {/* Sección Servicios */}
       {activeTab === 'services' && (
         <div>
-          <h2 style={{ marginBottom: '1.5rem' }}>Servicios de tu Clínica</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h2>Servicios de tu Clínica</h2>
+            <button
+              className="btn btn-primary"
+              onClick={() => handleOpenModal()}
+              style={{ padding: '0.75rem 1.5rem' }}
+            >
+              ➕ Nuevo Servicio
+            </button>
+          </div>
+
           {loading ? (
             <p>Cargando servicios...</p>
           ) : services.length === 0 ? (
             <div className="alert alert-info">
-              No hay servicios configurados. Contacta a administración.
+              No hay servicios. Crea uno haciendo click en "Nuevo Servicio".
             </div>
           ) : (
-            <div>
-              <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-                Aquí puedes editar el precio de los servicios que ofrece tu clínica. Estos precios serán visibles para los dueños de mascotas al agendar citas.
-              </p>
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '1fr',
-                gap: '1rem',
-                maxWidth: '900px'
-              }}>
-                {services.map(service => (
-                  <div
-                    key={service.id}
-                    style={{
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      padding: '1.5rem',
-                      backgroundColor: '#f9fafb',
-                      display: 'grid',
-                      gridTemplateColumns: '2fr 1fr 1fr 1fr',
-                      gap: '1rem',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div>
-                      <h4 style={{ margin: '0 0 0.5rem 0' }}>{service.name}</h4>
-                      <p style={{ color: '#666', margin: '0', fontSize: '0.9rem' }}>
-                        {service.description}
-                      </p>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <small style={{ color: '#999' }}>Duración</small>
-                      <div style={{ fontWeight: 'bold' }}>{service.duration} min</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <small style={{ color: '#999' }}>Precio</small>
-                      <div style={{ fontWeight: 'bold' }}>
-                        <span style={{ fontSize: '1.2rem' }}>$</span>{service.price}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <span style={{ 
-                        display: 'inline-block',
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#d1fae5',
-                        color: '#047857',
-                        borderRadius: '4px',
-                        fontSize: '0.9rem',
-                        fontWeight: 'bold'
-                      }}>
-                        ✓ Activo
-                      </span>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr',
+              gap: '1rem',
+              maxWidth: '900px'
+            }}>
+              {services.map(service => (
+                <div
+                  key={service.id}
+                  style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    padding: '1.5rem',
+                    backgroundColor: '#f9fafb',
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1fr 1fr 1fr 0.5fr',
+                    gap: '1rem',
+                    alignItems: 'center'
+                  }}
+                >
+                  <div>
+                    <h4 style={{ margin: '0 0 0.5rem 0' }}>{service.name}</h4>
+                    <p style={{ color: '#666', margin: '0', fontSize: '0.9rem' }}>
+                      {service.description}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <small style={{ color: '#999' }}>Duración</small>
+                    <div style={{ fontWeight: 'bold' }}>{service.duration} min</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <small style={{ color: '#999' }}>Precio</small>
+                    <div style={{ fontWeight: 'bold' }}>
+                      $ {formatCOP(service.price)}
                     </div>
                   </div>
-                ))}
-              </div>
-              <div style={{
-                marginTop: '2rem',
-                padding: '1rem',
-                backgroundColor: '#fef3c7',
-                borderRadius: '8px',
-                borderLeft: '4px solid #f59e0b'
-              }}>
-                <strong>ℹ️ Nota:</strong> Para editar o agregar nuevos servicios, contacta al administrador del sistema.
-              </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <span style={{ 
+                      display: 'inline-block',
+                      padding: '0.5rem 1rem',
+                      backgroundColor: '#d1fae5',
+                      color: '#047857',
+                      borderRadius: '4px',
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold'
+                    }}>
+                      ✓ Activo
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      style={{
+                        padding: '0.5rem',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem'
+                      }}
+                      onClick={() => handleOpenModal(service)}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      style={{
+                        padding: '0.5rem',
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem'
+                      }}
+                      onClick={() => handleDeleteService(service.id)}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de Edición */}
+      {showModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '2rem',
+            maxWidth: '500px',
+            width: '90%',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            <h2 style={{ marginTop: 0 }}>
+              {editingService ? '✏️ Editar Servicio' : '➕ Nuevo Servicio'}
+            </h2>
+
+            <div className="form-group">
+              <label>Nombre del Servicio</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                placeholder="Ej: Vacunación"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Descripción</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Ej: Vacunación completa contra principales enfermedades"
+                rows={3}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Categoría</label>
+              <select
+                value={formData.category}
+                onChange={(e) => handleInputChange('category', e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  fontSize: '1rem',
+                  fontFamily: 'inherit'
+                }}
+              >
+                {CATEGORIES.map(cat => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Duración (minutos)</label>
+                <input
+                  type="number"
+                  value={formData.duration}
+                  onChange={(e) => handleInputChange('duration', parseInt(e.target.value))}
+                  min="15"
+                  step="15"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Precio ($ COP)</label>
+                <input
+                  type="text"
+                  value={priceDisplay}
+                  onChange={(e) => {
+                    const formatted = formatCOP(parseCOP(e.target.value));
+                    setPriceDisplay(formatted);
+                    const numericValue = parseInt(parseCOP(formatted)) || 0;
+                    handleInputChange('price', numericValue);
+                  }}
+                  placeholder="Ej: 1.000.000"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveService}
+                disabled={loading}
+                style={{ flex: 1 }}
+              >
+                {loading ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleCloseModal}
+                disabled={loading}
+                style={{ flex: 1 }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
